@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code Maker</title>
+<style>
+:root{--site-primary:#194b7e;--site-secondary:#202020;--site-background:#0d1012;--site-on-primary:#fff;--site-on-secondary:#fff;--site-on-background:#f7f8fa;--site-font-body:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--site-font-heading:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--site-heading-scale:1;--site-spacing-scale:1;--site-radius-scale:1;--site-decoration-opacity:1;color-scheme:light dark}
+*{box-sizing:border-box}body{margin:0;font-family:var(--site-font-body);background:var(--site-background);color:var(--site-on-background)}
+.app{min-height:100vh;width:100%;display:grid;grid-template-columns:minmax(0,58.2%) minmax(390px,41.8%);background-color:light-dark(var(--site-background),var(--site-background))}
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:clamp(55px,13vh,145px) 34px 48px;border-right:1px solid #303235;text-align:center}
+.hero-copy{max-width:660px;font-size:clamp(34px,5.1vw,60px);line-height:1.58;letter-spacing:-1.8px;font-weight:400}.warm{color:#ff684f}.pink{color:#ff2875}
+.handshake{font-size:clamp(90px,12vw,132px);margin-top:clamp(65px,13vh,135px);filter:drop-shadow(0 9px 12px #0005)}
+.panel{min-height:100vh;background:var(--site-secondary);color:var(--site-on-secondary);display:flex;justify-content:center;padding:0 48px}
+.panel-inner{width:100%;max-width:430px;padding-top:108px}
+h1{font-family:var(--site-font-heading);font-size:calc(24px * var(--site-heading-scale));margin:0 0 35px;font-weight:750;letter-spacing:-.5px}
+.sub{color:#aeb6c1;font-size:14px;line-height:1.5;margin-bottom:17px}
+textarea{width:100%;min-height:80px;resize:vertical;border:1px solid #55575a;border-radius:calc(25px * var(--site-radius-scale));background:transparent;color:white;padding:23px 25px;font:inherit;font-size:17px;outline:none;transition:border .2s,box-shadow .2s}
+textarea:focus{border-color:#3998ff;box-shadow:0 0 0 3px #3998ff22}textarea::placeholder{color:#838b96}
+.primary{width:100%;min-height:68px;margin-top:34px;border:0;border-radius:40px;background:var(--site-primary);color:var(--site-on-primary);font:inherit;font-size:18px;font-weight:600;cursor:pointer;transition:filter .2s,transform .2s}
+.primary:hover{filter:brightness(1.15);transform:translateY(-1px)}.primary:focus-visible,.download:focus-visible{outline:3px solid #67b5ff;outline-offset:3px}
+.helper{color:#aeb6c1;text-align:center;font-size:13px;margin:15px 0 0;min-height:18px}
+.result{display:none;margin-top:28px;text-align:center}.qr-card{display:inline-flex;padding:16px;background:#fff;border-radius:18px;box-shadow:0 12px 35px #0005}
+.qr-card canvas{display:block;width:min(240px,62vw);height:auto;image-rendering:pixelated}
+.result-title{font-weight:650;margin:16px 0 5px}.result-value{color:#aeb6c1;font-size:12px;overflow-wrap:anywhere;max-width:100%}
+.download{margin-top:17px;border:1px solid #3295ff;border-radius:30px;background:transparent;color:#49a3ff;min-height:49px;padding:0 25px;font:inherit;font-size:15px;cursor:pointer}
+.bottom-note{color:#9299a3;text-align:center;font-size:12px;line-height:1.5;margin-top:26px}
+@media(max-width:800px){.app{grid-template-columns:1fr}.hero{min-height:350px;padding:48px 24px 22px;border-right:0;border-bottom:1px solid #303235}.hero-copy{font-size:clamp(31px,7vw,47px);line-height:1.35;letter-spacing:-1px}.handshake{font-size:75px;margin-top:25px}.panel{min-height:auto;padding:0 25px 55px}.panel-inner{padding-top:43px;max-width:480px}h1{margin-bottom:26px}}
+@media(max-width:420px){.panel{padding-left:20px;padding-right:20px}.hero{min-height:315px}}
+</style></head><body>
+<main class="app"><section class="hero" aria-label="Welcome"><div class="hero-copy">Create a QR Code<br>for your <span class="warm">close</span><br><span class="pink">friends.</span></div><div class="handshake" aria-hidden="true">🤝</div></section>
+<section class="panel"><div class="panel-inner"><h1>Generate a QR Code</h1><p class="sub">Paste a link or type any text to create a QR code you can share with friends.</p>
+<label for="qrText" style="position:absolute;left:-10000px">Text or URL to encode</label><textarea id="qrText" placeholder="Enter a URL or text" maxlength="105" spellcheck="false"></textarea>
+<button class="primary" id="generate">Generate QR Code</button><p class="helper" id="message" role="status" aria-live="polite">Your QR code will appear here.</p>
+<div class="result" id="result"><div class="qr-card"><canvas id="qrCanvas" width="600" height="600" aria-label="Generated QR code"></canvas></div><div class="result-title">Your QR code is ready!</div><div class="result-value" id="encodedValue"></div><button class="download" id="download">Download QR Code</button></div>
+<p class="bottom-note">No account needed. Your text stays in this page and is not uploaded.</p></div></section></main>
+<script>
+const ECC=[0,7,10,15,20,26],DATA=[0,19,34,55,80,108],ALIGN={2:[6,18],3:[6,22],4:[6,26],5:[6,30]};
+function bits(a,v,n){for(let i=n-1;i>=0;i--)a.push((v>>>i)&1)}
+function mul(x,y){let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);if((y>>>i)&1)z^=x}return z}
+function divisor(n){let r=Array(n).fill(0);r[n-1]=1;let root=1;for(let i=0;i<n;i++){for(let j=0;j<n;j++){r[j]=mul(r[j],root);if(j+1<n)r[j]^=r[j+1]}root=mul(root,2)}return r}
+function remainder(data,div){let r=Array(div.length).fill(0);for(const b of data){const f=b^r.shift();r.push(0);for(let i=0;i<r.length;i++)r[i]^=mul(div[i],f)}return r}
+function makeQr(text){
+ const bytes=Array.from(new TextEncoder().encode(text));let v=1;while(v<=5&&4+8+bytes.length*8>DATA[v]*8)v++;if(v>5)throw Error("Please use 105 bytes or fewer.");
+ const cap=DATA[v],b=[];bits(b,4,4);bits(b,bytes.length,8);bytes.forEach(x=>bits(b,x,8));bits(b,0,Math.min(4,cap*8-b.length));while(b.length%8)b.push(0);
+ const d=[];for(let i=0;i<b.length;i+=8){let x=0;for(let j=0;j<8;j++)x=(x<<1)|b[i+j];d.push(x)}for(let i=0;d.length<cap;i++)d.push(i%2===0?0xEC:0x11);
+ const cw=d.concat(remainder(d,divisor(ECC[v]))),n=v*4+17,m=Array.from({length:n},()=>Array(n).fill(null)),set=(x,y,z)=>{if(x>=0&&y>=0&&x<n&&y<n)m[y][x]=!!z};
+ function finder(cx,cy){for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){let q=Math.max(Math.abs(dx),Math.abs(dy));set(cx+dx,cy+dy,q!==2&&q!==4)}}
+ finder(3,3);finder(n-4,3);finder(3,n-4);for(let i=8;i<n-8;i++){set(6,i,i%2===0);set(i,6,i%2===0)}
+ if(v>=2)for(const cy of ALIGN[v])for(const cx of ALIGN[v]){if(m[cy][cx]!==null)continue;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)set(cx+dx,cy+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1)}
+ for(let i=0;i<9;i++)if(i!==6){set(8,i,false);set(i,8,false)}for(let i=0;i<8;i++)set(n-1-i,8,false);for(let i=0;i<7;i++)set(8,n-1-i,false);set(8,n-8,true);
+ let k=0;for(let right=n-1;right>=1;right-=2){if(right===6)right=5;for(let vert=0;vert<n;vert++){const y=((right+1)&2)===0?n-1-vert:vert;for(let j=0;j<2;j++){const x=right-j;if(m[y][x]===null){const z=k<cw.length*8?((cw[k>>>3]>>>(7-(k&7)))&1):0;k++;set(x,y,Boolean(z^((x+y)%2===0)))}}}}
+ const fd=8,fmt=(function(){let r=fd;for(let i=0;i<10;i++)r=(r<<1)^(((r>>>9)&1)*0x537);return ((fd<<10)|r)^0x5412})();const f=i=>((fmt>>>i)&1)!==0;
+ for(let i=0;i<=5;i++)set(8,i,f(i));set(8,7,f(6));set(8,8,f(7));set(7,8,f(8));for(let i=9;i<15;i++)set(14-i,8,f(i));
+ for(let i=0;i<8;i++)set(n-1-i,8,f(i));for(let i=8;i<15;i++)set(8,n-15+i,f(i));
+ return m.map(row=>row.map(x=>x===null?false:x));
+}
+function draw(matrix,c){const q=4,n=matrix.length,s=c.width/(n+q*2),ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle="#111";for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(matrix[y][x])ctx.fillRect(Math.round((x+q)*s),Math.round((y+q)*s),Math.ceil(s),Math.ceil(s))}
+const input=document.getElementById("qrText"),msg=document.getElementById("message"),result=document.getElementById("result"),canvas=document.getElementById("qrCanvas");
+document.getElementById("generate").addEventListener("click",()=>{const value=input.value.trim();if(!value){msg.textContent="Please enter a link or some text first.";result.style.display="none";input.focus();return}try{draw(makeQr(value),canvas);document.getElementById("encodedValue").textContent=value;result.style.display="block";msg.textContent="QR code generated successfully."}catch(e){result.style.display="none";msg.textContent=e.message}});
+document.getElementById("download").addEventListener("click",()=>{const a=document.createElement("a");a.download="my-qr-code.png";a.href=canvas.toDataURL("image/png");a.click()});
+</script></body></html>
